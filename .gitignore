@@ -1,0 +1,5 @@
+.DS_Store
+.env*
+*.pem
+.next/
+node_modules/

@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Email Permutator</title>
+  <style>
+    :root {
+      --bg:      #f5f6f8;
+      --surface: #ffffff;
+      --border:  #dde1e7;
+      --accent:  #2563eb;
+      --accent-h:#1d4ed8;
+      --text:    #1a1d23;
+      --muted:   #6b7280;
+      --radius:  8px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 15px;
+      line-height: 1.5;
+      background: var(--bg);
+      color: var(--text);
+      padding: 2.5rem 1rem 4rem;
+    }
+
+    .container { max-width: 1280px; margin: 0 auto; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5rem; align-items: start; }
+    @media (max-width: 860px) { .two-col { grid-template-columns: 1fr; } }
+
+    /* ── Header ── */
+    .header { margin-bottom: 2rem; }
+    .header h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; }
+    .header p  { color: var(--muted); margin-top: 0.3rem; font-size: 0.9rem; }
+
+    /* ── Card ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .card-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--muted);
+      margin-bottom: 1rem;
+    }
+
+    /* ── Upload area ── */
+    .upload-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 2.25rem 1.5rem;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      text-align: center;
+    }
+    .upload-area:hover, .upload-area.drag-over {
+      border-color: var(--accent);
+      background: #eff6ff;
+    }
+    .upload-area .icon { font-size: 2rem; line-height: 1; }
+    .upload-area .cta  { font-weight: 600; font-size: 0.95rem; }
+    .upload-area .hint { font-size: 0.82rem; color: var(--muted); }
+    #csv-file { display: none; }
+
+    /* ── Field rows (column mapping) ── */
+    .field-row {
+      display: grid;
+      grid-template-columns: 140px 1fr;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.65rem;
+    }
+    .field-row:last-child { margin-bottom: 0; }
+    .field-row label { font-size: 0.88rem; }
+    .field-row .req  { color: var(--accent); font-size: 0.75rem; vertical-align: top; margin-left: 1px; }
+
+    select, input[type="number"] {
+      width: 100%;
+      padding: 0.42rem 0.6rem;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      font-size: 0.88rem;
+      font-family: inherit;
+      background: #fff;
+      color: var(--text);
+      appearance: auto;
+    }
+    select:focus, input[type="number"]:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+    input[type="number"] { width: 72px; }
+
+    /* ── Options ── */
+    .options-grid { display: grid; gap: 0.85rem; }
+    .opt-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 0.9rem;
+    }
+    .opt-row label.opt-label { min-width: 120px; }
+
+    /* Toggle switch */
+    .toggle-wrap { position: relative; width: 40px; height: 22px; flex-shrink: 0; }
+    .toggle-wrap input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .toggle-track {
+      position: absolute; inset: 0;
+      background: #cbd5e1;
+      border-radius: 11px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .toggle-wrap input:checked + .toggle-track { background: var(--accent); }
+    .toggle-track::after {
+      content: '';
+      position: absolute;
+      top: 3px; left: 3px;
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      background: #fff;
+      transition: transform 0.2s;
+    }
+    .toggle-wrap input:checked + .toggle-track::after { transform: translateX(18px); }
+
+    /* Radio group */
+    .radio-group { display: flex; gap: 1.25rem; }
+    .radio-group label {
+      display: flex; align-items: center; gap: 0.35rem;
+      cursor: pointer; font-size: 0.88rem;
+    }
+
+    /* ── Action area ── */
+    .btn {
+      display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+      width: 100%;
+      padding: 0.8rem 1.5rem;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 0.97rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn:hover:not(:disabled) { background: var(--accent-h); }
+    .btn:disabled { background: #93afd8; cursor: not-allowed; }
+
+    .status {
+      margin-top: 0.75rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+      text-align: center;
+      min-height: 1.2em;
+    }
+    .status.error { color: #dc2626; }
+    .status.ok    { color: #16a34a; }
+
+    [hidden] { display: none !important; }
+
+    /* ── Summary ── */
+    .summary-row { display: flex; align-items: baseline; gap: 0.5rem; margin-bottom: 0.5rem; font-size: 0.92rem; }
+    .summary-row .badge { font-weight: 700; min-width: 1.8rem; text-align: right; }
+    .badge-ok  { color: #16a34a; }
+    .badge-err { color: #dc2626; }
+    .skip-list { margin: 0.4rem 0 0.2rem 1.4rem; padding: 0; list-style: none; }
+    .skip-list li { font-size: 0.84rem; color: var(--muted); padding: 0.1rem 0; }
+    .skip-list li::before { content: '↳ '; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <h1>Email Permutator</h1>
+    <p>Everything runs in your browser &mdash; no data leaves your machine.</p>
+  </div>
+
+  <div class="two-col">
+
+  <div class="col">
+
+  <div class="header" style="margin-bottom:1.5rem">
+    <h2 style="font-size:1.2rem;font-weight:700;letter-spacing:-0.01em">Generate Permutations</h2>
+    <p style="color:var(--muted);margin-top:0.3rem;font-size:0.9rem">Upload a CSV of leads &rarr; download ranked email guesses.</p>
+  </div>
+
+  <!-- Upload -->
+  <div class="card">
+    <label class="upload-area" for="csv-file" id="upload-label">
+      <span class="icon">&#128194;</span>
+      <span class="cta">Choose a CSV file</span>
+      <span class="hint" id="file-hint">or drag &amp; drop here</span>
+    </label>
+    <input type="file" id="csv-file" accept=".csv,text/csv">
+  </div>
+
+  <!-- Column mapping -->
+  <div class="card" id="mapping-card" hidden>
+    <div class="card-title">Column Mapping</div>
+    <div class="field-row">
+      <label for="col-first">First name<span class="req">*</span></label>
+      <select id="col-first"></select>
+    </div>
+    <div class="field-row">
+      <label for="col-last">Last name</label>
+      <select id="col-last"></select>
+    </div>
+    <div class="field-row">
+      <label for="col-company">Company</label>
+      <select id="col-company"></select>
+    </div>
+    <div class="field-row">
+      <label for="col-website">Website<span class="req">*</span></label>
+      <select id="col-website"></select>
+    </div>
+  </div>
+
+  <!-- Options -->
+  <div class="card" id="options-card" hidden>
+    <div class="card-title">Options</div>
+    <div class="options-grid">
+
+      <div class="opt-row">
+        <label class="toggle-wrap" title="Re-orders formats to put first-name-first patterns at the top">
+          <input type="checkbox" id="smb-mode" checked>
+          <span class="toggle-track"></span>
+        </label>
+        <span>SMB mode <small style="color:var(--muted)">(first-name-first ordering)</small></span>
+      </div>
+
+      <div class="opt-row">
+        <label class="opt-label" for="top-n">Top N formats</label>
+        <input type="number" id="top-n" value="10" min="1" max="10">
+        <span style="color:var(--muted);font-size:0.82rem">1&ndash;10</span>
+      </div>
+
+      <div class="opt-row">
+        <label class="opt-label">Output layout</label>
+        <div class="radio-group">
+          <label><input type="radio" name="layout" value="long" checked> Long</label>
+          <label><input type="radio" name="layout" value="wide"> Wide</label>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Action -->
+  <div id="action-card" hidden>
+    <button class="btn" id="process-btn">
+      <span>&#9654;</span> Process CSV
+    </button>
+    <p class="status" id="status-msg"></p>
+  </div>
+
+  <!-- Summary -->
+  <div class="card" id="summary-card" hidden>
+    <div class="card-title">Summary</div>
+    <div id="summary-body"></div>
+    <button class="btn" id="download-btn" style="margin-top:1rem">
+      <span>&#8659;</span> Download CSV
+    </button>
+  </div>
+
+  </div><!-- /col left -->
+
+  <div class="col">
+
+  <div class="header" style="margin-bottom:1.5rem">
+    <h2 style="font-size:1.2rem;font-weight:700;letter-spacing:-0.01em">Deduplicate Verified Results</h2>
+    <p style="color:var(--muted);margin-top:0.3rem;font-size:0.9rem">Upload your verifier&rsquo;s output &mdash; if the same person has multiple valid emails, only the highest-ranked one is kept.</p>
+  </div>
+
+  <!-- Dedup Upload -->
+  <div class="card">
+    <label class="upload-area" for="dedup-file" id="dedup-upload-label">
+      <span class="icon">&#128203;</span>
+      <span class="cta">Choose verified CSV</span>
+      <span class="hint" id="dedup-file-hint">or drag &amp; drop here</span>
+    </label>
+    <input type="file" id="dedup-file" accept=".csv,text/csv">
+  </div>
+
+  <!-- Dedup Column Mapping -->
+  <div class="card" id="dedup-mapping-card" hidden>
+    <div class="card-title">Column Mapping</div>
+    <div class="field-row">
+      <label for="dedup-col-first">First name<span class="req">*</span></label>
+      <select id="dedup-col-first"></select>
+    </div>
+    <div class="field-row">
+      <label for="dedup-col-last">Last name</label>
+      <select id="dedup-col-last"></select>
+    </div>
+    <div class="field-row">
+      <label for="dedup-col-email">Email<span class="req">*</span></label>
+      <select id="dedup-col-email"></select>
+    </div>
+    <div class="field-row">
+      <label for="dedup-col-rank">Rank<span class="req">*</span></label>
+      <select id="dedup-col-rank"></select>
+    </div>
+  </div>
+
+  <!-- Dedup Action -->
+  <div id="dedup-action-card" hidden>
+    <button class="btn" id="dedup-process-btn">
+      <span>&#9654;</span> Deduplicate
+    </button>
+    <p class="status" id="dedup-status-msg"></p>
+  </div>
+
+  <!-- Dedup Summary -->
+  <div class="card" id="dedup-summary-card" hidden>
+    <div class="card-title">Summary</div>
+    <div id="dedup-summary-body"></div>
+    <button class="btn" id="dedup-download-btn" style="margin-top:1rem">
+      <span>&#8659;</span> Download Deduplicated CSV
+    </button>
+  </div>
+
+  </div><!-- /col right -->
+  </div><!-- /two-col -->
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="permutator.js"></script>
+<script>
+  (function () {
+    'use strict';
+
+    var P          = window.Permutator;
+    var csvData    = [];
+    var csvHeaders = [];
+    var pendingCsv = null;   // { text, filename } set after processing, used by download btn
+
+    var fileInput   = document.getElementById('csv-file');
+    var uploadLabel = document.getElementById('upload-label');
+    var fileHint    = document.getElementById('file-hint');
+    var mappingCard = document.getElementById('mapping-card');
+    var optionsCard = document.getElementById('options-card');
+    var actionCard  = document.getElementById('action-card');
+    var processBtn  = document.getElementById('process-btn');
+    var statusMsg   = document.getElementById('status-msg');
+
+    var selects = {
+      first:   document.getElementById('col-first'),
+      last:    document.getElementById('col-last'),
+      company: document.getElementById('col-company'),
+      website: document.getElementById('col-website'),
+    };
+
+    var summaryCard = document.getElementById('summary-card');
+    var summaryBody = document.getElementById('summary-body');
+    var downloadBtn = document.getElementById('download-btn');
+
+    // ── File input ────────────────────────────────────────────────────────────
+    fileInput.addEventListener('change', function (e) {
+      var file = e.target.files[0];
+      if (file) loadFile(file);
+    });
+
+    // Drag-and-drop on the label
+    uploadLabel.addEventListener('dragover', function (e) {
+      e.preventDefault();
+      uploadLabel.classList.add('drag-over');
+    });
+    uploadLabel.addEventListener('dragleave', function () {
+      uploadLabel.classList.remove('drag-over');
+    });
+    uploadLabel.addEventListener('drop', function (e) {
+      e.preventDefault();
+      uploadLabel.classList.remove('drag-over');
+      var file = e.dataTransfer && e.dataTransfer.files[0];
+      if (file) loadFile(file);
+    });
+
+    function loadFile(file) {
+      fileHint.textContent = file.name;
+      setStatus('', '');
+      pendingCsv = null;
+      summaryCard.setAttribute('hidden', '');
+
+      var reader = new FileReader();
+      reader.onerror = function () {
+        setStatus('Could not read file.', 'error');
+      };
+      reader.onload = function (e) {
+        var buffer = e.target.result;
+
+        // Try strict UTF-8 first; fall back to Windows-1252 (common from Excel / scrapers).
+        var text;
+        try {
+          text = new TextDecoder('utf-8', { fatal: true }).decode(buffer);
+        } catch (_) {
+          text = new TextDecoder('windows-1252').decode(buffer);
+        }
+
+        var results = Papa.parse(text, {
+          header:         true,
+          skipEmptyLines: true,
+        });
+
+        if (!results.data || !results.data.length) {
+          setStatus('CSV appears to be empty or could not be parsed.', 'error');
+          return;
+        }
+        csvData    = results.data;
+        csvHeaders = results.meta.fields || [];
+        buildDropdowns(csvHeaders);
+        mappingCard.removeAttribute('hidden');
+        optionsCard.removeAttribute('hidden');
+        actionCard.removeAttribute('hidden');
+        setStatus(csvData.length + ' rows loaded.', 'ok');
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    // ── Dropdowns ─────────────────────────────────────────────────────────────
+    function buildDropdowns(headers) {
+      var detected = P.detectColumns(headers);
+
+      Object.keys(selects).forEach(function (field) {
+        var sel = selects[field];
+        sel.innerHTML = '';
+
+        // Optional fields get a (none) placeholder.
+        if (field === 'last' || field === 'company') {
+          var none = document.createElement('option');
+          none.value       = '';
+          none.textContent = '(none)';
+          sel.appendChild(none);
+        }
+
+        headers.forEach(function (h) {
+          var opt = document.createElement('option');
+          opt.value       = h;
+          opt.textContent = h;
+          if (detected[field] === h) opt.selected = true;
+          sel.appendChild(opt);
+        });
+      });
+    }
+
+    // ── Process ───────────────────────────────────────────────────────────────
+    processBtn.addEventListener('click', function () {
+      var colMap = {
+        first:   selects.first.value   || null,
+        last:    selects.last.value    || null,
+        company: selects.company.value || null,
+        website: selects.website.value || null,
+      };
+
+      if (!colMap.first) {
+        setStatus('Please select the First Name column.', 'error');
+        return;
+      }
+      if (!colMap.website) {
+        setStatus('Please select the Website column.', 'error');
+        return;
+      }
+
+      var smb    = document.getElementById('smb-mode').checked;
+      var topN   = Math.max(1, Math.min(10, parseInt(document.getElementById('top-n').value, 10) || 4));
+      var layout = document.querySelector('input[name="layout"]:checked').value;
+
+      processBtn.disabled   = true;
+      statusMsg.textContent = 'Processing\u2026';
+      statusMsg.className   = 'status';
+      summaryCard.setAttribute('hidden', '');
+
+      // Defer so the browser can repaint before heavy work.
+      setTimeout(function () {
+        try {
+          var rows    = P.processRows(csvData, colMap, { smb: smb, topN: topN, layout: layout });
+          var csvText = Papa.unparse(rows);
+          var date    = new Date().toISOString().slice(0, 10);
+
+          pendingCsv = {
+            text:     csvText,
+            filename: 'email_permutator_' + layout + '_' + date + '.csv',
+          };
+
+          // ── Build summary ──────────────────────────────────────────────────
+          var total       = csvData.length;
+          var errorGroups = {}; // reason → count
+          var successCount;
+
+          if (layout === 'long') {
+            successCount = 0;
+            rows.forEach(function (r) {
+              if (r.rank === 1) { successCount++; }
+              else if (r.rank === '') { errorGroups[r.note] = (errorGroups[r.note] || 0) + 1; }
+            });
+          } else {
+            successCount = 0;
+            rows.forEach(function (r) {
+              if (r.note) { errorGroups[r.note] = (errorGroups[r.note] || 0) + 1; }
+              else        { successCount++; }
+            });
+          }
+
+          var errorCount   = total - successCount;
+          var errorReasons = Object.keys(errorGroups);
+          var html = '';
+
+          html += '<div class="summary-row">'
+               +    '<span class="badge badge-ok">' + successCount + '</span>'
+               +    '<span>of ' + total + ' record' + (total !== 1 ? 's' : '') + ' processed successfully</span>'
+               + '</div>';
+
+          if (errorCount > 0) {
+            html += '<div class="summary-row">'
+                 +    '<span class="badge badge-err">' + errorCount + '</span>'
+                 +    '<span>record' + (errorCount !== 1 ? 's' : '') + ' skipped</span>'
+                 + '</div>';
+            html += '<ul class="skip-list">';
+            errorReasons.forEach(function (reason) {
+              html += '<li>' + errorGroups[reason] + ' &mdash; ' + reason + '</li>';
+            });
+            html += '</ul>';
+          }
+
+          summaryBody.innerHTML = html;
+          summaryCard.removeAttribute('hidden');
+          setStatus('');
+        } catch (err) {
+          setStatus('Error: ' + err.message, 'error');
+        }
+        processBtn.disabled = false;
+      }, 15);
+    });
+
+    // ── Download ──────────────────────────────────────────────────────────────
+    downloadBtn.addEventListener('click', function () {
+      if (!pendingCsv) return;
+      var blob = new Blob(['\uFEFF' + pendingCsv.text], { type: 'text/csv;charset=utf-8;' });
+      var url  = URL.createObjectURL(blob);
+      var a    = document.createElement('a');
+      a.href     = url;
+      a.download = pendingCsv.filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+
+    function setStatus(msg, cls) {
+      statusMsg.textContent = msg;
+      statusMsg.className   = 'status' + (cls ? ' ' + cls : '');
+    }
+
+    // ── Deduplicate section ───────────────────────────────────────────────────
+    var dedupData       = [];
+    var pendingDedupCsv = null;
+
+    var dedupFileInput   = document.getElementById('dedup-file');
+    var dedupUploadLabel = document.getElementById('dedup-upload-label');
+    var dedupFileHint    = document.getElementById('dedup-file-hint');
+    var dedupMappingCard = document.getElementById('dedup-mapping-card');
+    var dedupActionCard  = document.getElementById('dedup-action-card');
+    var dedupSummaryCard = document.getElementById('dedup-summary-card');
+    var dedupSummaryBody = document.getElementById('dedup-summary-body');
+    var dedupProcessBtn  = document.getElementById('dedup-process-btn');
+    var dedupDownloadBtn = document.getElementById('dedup-download-btn');
+    var dedupStatusMsg   = document.getElementById('dedup-status-msg');
+
+    var dedupSelects = {
+      first: document.getElementById('dedup-col-first'),
+      last:  document.getElementById('dedup-col-last'),
+      email: document.getElementById('dedup-col-email'),
+      rank:  document.getElementById('dedup-col-rank'),
+    };
+
+    dedupFileInput.addEventListener('change', function (e) {
+      var file = e.target.files[0];
+      if (file) loadDedupFile(file);
+    });
+    dedupUploadLabel.addEventListener('dragover', function (e) {
+      e.preventDefault(); dedupUploadLabel.classList.add('drag-over');
+    });
+    dedupUploadLabel.addEventListener('dragleave', function () {
+      dedupUploadLabel.classList.remove('drag-over');
+    });
+    dedupUploadLabel.addEventListener('drop', function (e) {
+      e.preventDefault();
+      dedupUploadLabel.classList.remove('drag-over');
+      var file = e.dataTransfer && e.dataTransfer.files[0];
+      if (file) loadDedupFile(file);
+    });
+
+    function loadDedupFile(file) {
+      dedupFileHint.textContent = file.name;
+      setDedupStatus('', '');
+      pendingDedupCsv = null;
+      dedupSummaryCard.setAttribute('hidden', '');
+
+      var reader = new FileReader();
+      reader.onerror = function () { setDedupStatus('Could not read file.', 'error'); };
+      reader.onload = function (e) {
+        var buffer = e.target.result;
+        var text;
+        try {
+          text = new TextDecoder('utf-8', { fatal: true }).decode(buffer);
+        } catch (_) {
+          text = new TextDecoder('windows-1252').decode(buffer);
+        }
+        var results = Papa.parse(text, { header: true, skipEmptyLines: true });
+        if (!results.data || !results.data.length) {
+          setDedupStatus('CSV appears to be empty or could not be parsed.', 'error');
+          return;
+        }
+        dedupData = results.data;
+        buildDedupDropdowns(results.meta.fields || []);
+        dedupMappingCard.removeAttribute('hidden');
+        dedupActionCard.removeAttribute('hidden');
+        setDedupStatus(dedupData.length + ' rows loaded.', 'ok');
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function detectDedupCol(headers, patterns) {
+      for (var i = 0; i < patterns.length; i++) {
+        var match = headers.filter(function (h) { return patterns[i].test(h); })[0];
+        if (match) return match;
+      }
+      return null;
+    }
+
+    function buildDedupDropdowns(headers) {
+      var detected = P.detectColumns(headers);
+      var emailCol = detectDedupCol(headers, [/^email$/i, /^email[\s_-]address$/i, /\bemail\b/i]);
+      var rankCol  = detectDedupCol(headers, [/^rank$/i, /\brank\b/i]);
+
+      Object.keys(dedupSelects).forEach(function (field) {
+        var sel = dedupSelects[field];
+        sel.innerHTML = '';
+        if (field === 'last') {
+          var none = document.createElement('option');
+          none.value = ''; none.textContent = '(none)';
+          sel.appendChild(none);
+        }
+        headers.forEach(function (h) {
+          var opt = document.createElement('option');
+          opt.value = h; opt.textContent = h;
+          if (field === 'first' && detected.first === h) opt.selected = true;
+          if (field === 'last'  && detected.last  === h) opt.selected = true;
+          if (field === 'email' && emailCol        === h) opt.selected = true;
+          if (field === 'rank'  && rankCol         === h) opt.selected = true;
+          sel.appendChild(opt);
+        });
+      });
+    }
+
+    dedupProcessBtn.addEventListener('click', function () {
+      var firstCol = dedupSelects.first.value || null;
+      var lastCol  = dedupSelects.last.value  || null;
+      var emailCol = dedupSelects.email.value || null;
+      var rankCol  = dedupSelects.rank.value  || null;
+
+      if (!firstCol) { setDedupStatus('Please select the First Name column.', 'error'); return; }
+      if (!emailCol) { setDedupStatus('Please select the Email column.',      'error'); return; }
+      if (!rankCol)  { setDedupStatus('Please select the Rank column.',       'error'); return; }
+
+      dedupProcessBtn.disabled = true;
+      dedupSummaryCard.setAttribute('hidden', '');
+
+      setTimeout(function () {
+        try {
+          var groups = {};
+
+          dedupData.forEach(function (row) {
+            var email  = (row[emailCol] || '').toLowerCase().trim();
+            var domain = email.indexOf('@') !== -1 ? email.split('@')[1] : email;
+            var first  = (row[firstCol] || '').toLowerCase().trim();
+            var last   = lastCol ? (row[lastCol] || '').toLowerCase().trim() : '';
+            var key    = first + '\x00' + last + '\x00' + domain;
+            var rank   = parseInt(row[rankCol], 10);
+            if (isNaN(rank)) rank = Infinity;
+
+            if (!groups[key] || rank < groups[key].rank) {
+              groups[key] = { row: row, rank: rank };
+            }
+          });
+
+          var outputRows = Object.keys(groups).map(function (k) { return groups[k].row; });
+          var removed    = dedupData.length - outputRows.length;
+          var date       = new Date().toISOString().slice(0, 10);
+
+          pendingDedupCsv = {
+            text:     Papa.unparse(outputRows),
+            filename: 'deduped_verified_' + date + '.csv',
+          };
+
+          dedupSummaryBody.innerHTML =
+            '<div class="summary-row">'
+            +  '<span class="badge badge-ok">' + outputRows.length + '</span>'
+            +  '<span>unique record' + (outputRows.length !== 1 ? 's' : '') + ' kept</span>'
+            + '</div>'
+            + '<div class="summary-row">'
+            +  '<span class="badge badge-err">' + removed + '</span>'
+            +  '<span>duplicate' + (removed !== 1 ? 's' : '') + ' removed'
+            +  (removed > 0 ? ' &mdash; lower-ranked emails per person discarded' : '')
+            +  '</span>'
+            + '</div>';
+
+          dedupSummaryCard.removeAttribute('hidden');
+          setDedupStatus('');
+        } catch (err) {
+          setDedupStatus('Error: ' + err.message, 'error');
+        }
+        dedupProcessBtn.disabled = false;
+      }, 15);
+    });
+
+    dedupDownloadBtn.addEventListener('click', function () {
+      if (!pendingDedupCsv) return;
+      var blob = new Blob(['\uFEFF' + pendingDedupCsv.text], { type: 'text/csv;charset=utf-8;' });
+      var url  = URL.createObjectURL(blob);
+      var a    = document.createElement('a');
+      a.href = url; a.download = pendingDedupCsv.filename;
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+
+    function setDedupStatus(msg, cls) {
+      dedupStatusMsg.textContent = msg;
+      dedupStatusMsg.className   = 'status' + (cls ? ' ' + cls : '');
+    }
+  }());
+</script>
+</body>
+</html>
