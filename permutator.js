@@ -268,6 +268,15 @@
 
     var genOpts = { smb: smb, topN: topN };
 
+    // Copy all keys from an original CSV row into a new object.
+    function copyRow(row) {
+      var out = {};
+      for (var k in row) {
+        if (Object.prototype.hasOwnProperty.call(row, k)) out[k] = row[k];
+      }
+      return out;
+    }
+
     if (layout === 'wide') {
       // First pass: generate emails for each row and find the max email count.
       var processed = [];
@@ -288,20 +297,17 @@
           }
         }
 
-        processed.push({ lead: lead, domain: dp.domain || '', emailList: emailList, note: rowNote });
+        processed.push({ orig: rows[i], domain: dp.domain || '', emailList: emailList, note: rowNote });
         if (emailList.length > maxEmails) maxEmails = emailList.length;
       }
 
-      // Second pass: build uniform output rows.
+      // Second pass: build uniform output rows (skip error rows).
       var wideOut = [];
       for (var ii = 0; ii < processed.length; ii++) {
         var p = processed[ii];
-        var outRow = {
-          first_name: p.lead.first,
-          last_name:  p.lead.last,
-          company:    p.lead.company,
-          domain:     p.domain,
-        };
+        if (!p.emailList.length) continue;
+        var outRow = copyRow(p.orig);
+        outRow.domain = p.domain;
         for (var k = 0; k < maxEmails; k++) {
           outRow['email_' + (k + 1)] = p.emailList[k] || '';
         }
@@ -320,16 +326,14 @@
 
         for (var ej = 0; ej < emails.length; ej++) {
           var e = emails[ej];
-          longOut.push({
-            first_name: lead.first,
-            last_name:  lead.last,
-            company:    lead.company,
-            domain:     dp.domain || '',
-            rank:       e.rank   !== null && e.rank   !== undefined ? e.rank   : '',
-            format:     e.format !== null && e.format !== undefined ? e.format : '',
-            email:      e.email  || '',
-            note:       e.note   || '',
-          });
+          if (!e.email) continue;  // skip error rows
+          var outRow = copyRow(rows[idx]);
+          outRow.domain = dp.domain || '';
+          outRow.rank   = e.rank;
+          outRow.format = e.format;
+          outRow.email  = e.email;
+          outRow.note   = '';
+          longOut.push(outRow);
         }
       }
       return longOut;

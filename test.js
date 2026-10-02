@@ -217,23 +217,19 @@ test('long mode — has required columns', () => {
     assert.ok(keys.includes(k), 'missing column: ' + k)
   );
 });
-test('long mode — error lead gets one row with note', () => {
+test('long mode — error lead is excluded from output', () => {
   const rows = P.processRows(sampleRows, colMap, { smb: false, topN: 2, layout: 'long' });
-  const noFirstRow = rows.find(r => r.first_name === '' && r.last_name === 'Brown');
-  assert.ok(noFirstRow, 'missing error row');
-  assert.strictEqual(noFirstRow.note, 'missing name');
-  assert.strictEqual(noFirstRow.email, '');
-  assert.strictEqual(noFirstRow.rank, '');
+  const noFirstRow = rows.find(r => r.last_name === 'Brown' && !r.email);
+  assert.ok(!noFirstRow, 'error row should not appear in output');
 });
 test('wide mode — has email_1 column', () => {
   const rows = P.processRows(sampleRows, colMap, { smb: false, topN: 2, layout: 'wide' });
   assert.ok('email_1' in rows[0]);
 });
-test('wide mode — no email leads still have a row', () => {
+test('wide mode — error leads are excluded from output', () => {
   const rows = P.processRows(sampleRows, colMap, { smb: false, topN: 2, layout: 'wide' });
   const noFirst = rows.find(r => r.first_name === '');
-  assert.ok(noFirst);
-  assert.strictEqual(noFirst.note, 'missing name');
+  assert.ok(!noFirst, 'error row should not appear in output');
 });
 test('wide mode — all rows same number of columns', () => {
   const rows = P.processRows(sampleRows, colMap, { smb: false, topN: 4, layout: 'wide' });
